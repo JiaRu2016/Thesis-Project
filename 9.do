@@ -107,18 +107,20 @@ save  "Cleaning_Steps/sib_husb.dta", replace
 
 use "Original/CFPS_2010_adult", clear
 keep pid gender qb1
-keep if gender==2
+keep if gender==0
 rename pid wife_pid
 rename qb1 wife_Sib
 save  "Cleaning_Steps/sib_wife.dta", replace
 
-/*
+
 use "Cleaning_Steps/final2012.dta", clear
 merge m:1 husb_pid using "Cleaning_Steps/sib_husb.dta"
 drop _merge
 merge m:1 wife_pid using "Cleaning_Steps/sib_wife.dta"
 drop _merge
-*/
+
+save "Cleaning_Steps/final.dta", replace
+
 
 /**********************************************
 		II. Generate Xs Ys
@@ -138,6 +140,26 @@ gen c2_m = wife_tb1m_a_c2
 gen child2 = (c2_y>0) if c1_y>0
 replace child2 = 0 if c1_y==c2_y & c1_m==c2_m & child2==1
 
-// 2. X: couple_type
+// X
 
+// 2. couple_type
 
+gen couple_type = .
+replace couple_type = 1 if wife_Sib==0 | husb_Sib==0
+replace couple_type = 0 if wife_Sib==0 & husb_Sib==0
+replace couple_type = 2 if wife_Sib>0 & husb_Sib>0
+
+// 3. AgeC1
+
+gen wife_birth_y = wife_tb1y_a_p
+gen AgeC1 = c1_y-wife_birth_y
+
+// 4. Income
+
+// 5. Wealth
+
+// 6. Edu
+
+// 7. ImpQ
+
+// 8. FamilyStructurea
