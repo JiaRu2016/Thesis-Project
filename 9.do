@@ -94,12 +94,50 @@ merge m:m wife_pid husb_pid using "Cleaning_Steps/c1.dta"
 drop if _merge==2
 rename _merge child1info
 recode child1info (1=0)(3=1) //(1="no")(3="yes")
-save "Cleaning_Steps/final.dta", replace
+save "Cleaning_Steps/final2012.dta", replace
+
+// 5. siblings. From 2010 data set
+
+use "Original/CFPS_2010_adult", clear
+keep pid gender qb1
+keep if gender==1
+rename pid husb_pid
+rename qb1 husb_Sib
+save  "Cleaning_Steps/sib_husb.dta", replace
+
+use "Original/CFPS_2010_adult", clear
+keep pid gender qb1
+keep if gender==2
+rename pid wife_pid
+rename qb1 wife_Sib
+save  "Cleaning_Steps/sib_wife.dta", replace
+
+/*
+use "Cleaning_Steps/final2012.dta", clear
+merge m:1 husb_pid using "Cleaning_Steps/sib_husb.dta"
+drop _merge
+merge m:1 wife_pid using "Cleaning_Steps/sib_wife.dta"
+drop _merge
+*/
 
 /**********************************************
 		II. Generate Xs Ys
 **********************************************/
 
 use "Cleaning_Steps/final.dta", clear
+
+// 0. keep only urban
+keep if fe_urban12==1
+
+// 1. Y: child2
+gen c1_y = wife_tb1y_a_c1
+gen c1_m = wife_tb1m_a_c1
+gen c2_y = wife_tb1y_a_c2 
+gen c2_m = wife_tb1m_a_c2
+
+gen child2 = (c2_y>0) if c1_y>0
+replace child2 = 0 if c1_y==c2_y & c1_m==c2_m & child2==1
+
+// 2. X: couple_type
 
 
