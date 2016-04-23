@@ -132,34 +132,77 @@ use "Cleaning_Steps/final.dta", clear
 keep if fe_urban12==1
 
 // 1. Y: child2
+// (Note: have already drop family without ONE child)
 gen c1_y = wife_tb1y_a_c1
 gen c1_m = wife_tb1m_a_c1
 gen c2_y = wife_tb1y_a_c2 
 gen c2_m = wife_tb1m_a_c2
 
 gen child2 = (c2_y>0) if c1_y>0
-replace child2 = 0 if c1_y==c2_y & c1_m==c2_m & child2==1
+replace child2 = 0 if c1_y==c2_y & c1_m==c2_m & child2==1 //twins
 
 // X
 
 // 2. couple_type
-
 gen couple_type = .
 replace couple_type = 1 if wife_Sib==0 | husb_Sib==0
 replace couple_type = 0 if wife_Sib==0 & husb_Sib==0
 replace couple_type = 2 if wife_Sib>0 & husb_Sib>0
 
 // 3. AgeC1
-
 gen wife_birth_y = wife_tb1y_a_p
 gen AgeC1 = c1_y-wife_birth_y
 
 // 4. Income
+gen w_Income = aw_income_adj  // wife income
+gen h_Income = ah_income_adj  // husband income
+gen Income = fe_fincome1_adj  // family net income
 
 // 5. Wealth
+gen HouseValue = fe_fq4a_best+ fe_fr2e_a_1+ fe_fr2e_a_2+ fe_fr2e_a_3+ fe_fr2e_a_4+ fe_fr2e_a_5+ fe_fr2e_a_6+ fe_fr2e_a_7+ fe_fr2e_a_8+ fe_fr2e_a_9+ fe_fr2e_a_10
+replace HouseValue = log(HouseValue)
+
+gen HouseArea = fe_fq701+ fe_fr4_a_1+ fe_fr4_a_2+ fe_fr4_a_3+ fe_fr4_a_4+ fe_fr4_a_5+ fe_fr4_a_6+ fe_fr4_a_7+ fe_fr4_a_8+ fe_fr4_a_9+ fe_fr4_a_10
+replace HouseArea = log(HouseArea)
 
 // 6. Edu
+gen w_Edu= wife_tb4_a12_p
+gen h_Edu= husb_tb4_a12_p
 
 // 7. ImpQ
+*pass
 
-// 8. FamilyStructurea
+// 8. Occupation
+gen w_GovSOE=(aw_qg703==1|aw_qg703==2|aw_qg703==3|aw_qg703==4)
+gen h_GovSOE=(ah_qg703==1|ah_qg703==2|ah_qg703==3|ah_qg703==4)
+gen GovSOE=(w_GovSOE==1|h_GovSOE==1)
+
+// 9. FamilyStructure
+mvdecode husb_co_a12_f husb_co_a12_m wife_co_a12_f wife_co_a12_m, mv(-8=.\-2=.\-1=.)
+gen Bigfamily = wife_co_a12_f+ wife_co_a12_m+ husb_co_a12_f+ husb_co_a12_m
+
+save "Cleaned/CFPS_cleaned.dta", replace
+
+/**********************************************
+		III. Regression
+**********************************************/
+
+use "Cleaned/CFPS_cleaned.dta", clear
+
+global X "AgeC1 couple_type w_Income h_Income HouseArea w_Edu GovSOE Bigfamily"
+global Y "child2"
+global con80 "wife_birth_y>=1978 & wife_birth_y <1988"
+
+reg $Y $X
+est store CFPS_all
+
+reg $Y $X if $con80
+est store CFPS_80
+
+esttab CFPS_all CFPS_80
+
+
+
+
+
+
