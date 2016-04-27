@@ -20,16 +20,20 @@ use "Original/cgss2013.dta", clear
 
 // gender
 gen gender = a2  //1=male 2=female
+recode gender (1=1)(2=0)
+label define gender 1 "male" 0 "female"
+label value gender gender
 
 // Han
 recode a4 (-3 -2 -1=.)(1=1)(2/8=0), gen(Han)
 
 // Birth_year or Age
-gen Birthy = a3a   
+gen Birthy = a3a  
+*tab Birthy 
 
 // only 80s -->> Obs:1700
-keep if Birthy>=1980 & Birthy<=1989 //only 80s
-*tab Birthy
+**keep if Birthy>=1980 & Birthy<=1989 //only 80s
+
 
 // Married & MarriAge
 gen married = 1 if a70>=1990 & a70<=2013
@@ -37,8 +41,9 @@ replace married = 0 if a70==9997
 gen MarriAge = a70-Birthy if a70>=1990 & a70<=2013
 *hist MarriAge; tab married
 
-// HuKou
-
+// Urabn & Province
+gen Prv = s41
+gen Urban = s5a
 
 ********************************************************************
 * Y: child_ideal & child_fact
@@ -46,10 +51,13 @@ gen MarriAge = a70-Birthy if a70>=1990 & a70<=2013
 gen child_ideal=a37a
 gen boy_ideal=a37b
 gen girl_ideal=a37c
+recode child_ideal girl_ideal boy_ideal (-3 -2 -2=.)(6/100=.)
 
 gen child_fact = a68a
 gen boy_fact = a681
 gen girl_fact = a682
+recode child_fact girl_fact boy_fact (-3 -2 -2=.)
+
 
 ********************************************************************
 * X
@@ -59,13 +67,13 @@ gen girl_fact = a682
 // 2. AgeC1
 
 // 4. Edu (3-level)
-recode a7a a72 (-3 -2 -1 14=.)(1 2 3 4=0)(5 7 8 =1)(6 9 10=2)(11 12 13=3), gen(Edu Edu_s)
+recode a7a a72 (-3 -2 -1 14=.)(1 2 3 4=1)(5 6 7 8 9 10=2)(11 12 13=3), gen(Edu Edu_s)
 gen w_Edu=Edu if gender==2
 replace  w_Edu=Edu_s if gender==1
 gen h_Edu=Edu if gender==1
 replace h_Edu=Edu_s if gender==2
 drop Edu Edu_s
-label define Edu 0 "Compulsory" 1 "mid1" 2 "mid2" 3 "Undergraduate"
+label define Edu 1 "Compulsory" 2 "middle" 3 "Undergraduate"
 label value w_Edu h_Edu Edu
 *tab w_Edu h_Edu
 
@@ -114,6 +122,43 @@ drop GovSOE GovSOE_s
 gen GovSOE=.
 replace GovSOE=1 if w_GovSOE==1|h_GovSOE==1
 replace GovSOE=0 if w_GovSOE==0 & h_GovSOE==0
-tab GovSOE
+*tab GovSOE
 
 // 8. Bigfamily
+// none.
+
+// 9. ImpQ
+
+save "Cleaned/final_cgss2013.dta", replace
+
+/**********************************************
+		II. Regression
+**********************************************/
+use "Cleaned/final_cgss2013.dta", clear
+
+est clear
+
+global Yi "child_ideal"
+global Yf "child_fact"
+
+global X "MarriAge i.w_Edu w_Inc h_Inc i.HousePr GovSOE"
+
+
+reg $Yi $X
+est store CGSS13_ideal
+
+reg $Yf $X
+est store CGSS13_fact
+
+keep if Birthy>=1980 & Birthy<=1989 //only 80s
+
+reg $Yi $X
+est store CGSS13_i_80s
+
+reg $Yf $X
+est store CGSS13_f_80s
+
+outreg2 [CGSS13_ideal CGSS13_fact CGSS13_i_80s CGSS13_f_80s] ///
+using "tables/CGSS13_reg.xls", replace nose
+
+
